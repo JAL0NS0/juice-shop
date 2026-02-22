@@ -1,0 +1,184 @@
+name: "Governance Pipeline - Code Quality & Coverage"
+on:
+  push:
+    branches:
+      - develop
+      - master
+    paths-ignore:
+      - '*.md'
+      - 'LICENSE'
+      - 'monitoring/**'
+      - 'screenshots/**'
+  pull_request:
+    paths-ignore:
+      - '*.md'
+      - 'LICENSE'
+      - 'data/static/i18n/*.json'
+      - 'frontend/src/assets/i18n/*.json'
+
+env:
+  NODE_DEFAULT_VERSION: 22
+  NODE_OPTIONS: "--max_old_space_size=4096"
+
+jobs:
+  sonarcloud-quality-gate:
+    name: "SonarCloud Quality Gate Analysis"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Check out Git repository with full history"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4.2.2
+        with:
+          fetch-depth: 0 # Required for SonarCloud to detect new issues
+
+      - name: "Use Node.js ${{ env.NODE_DEFAULT_VERSION }}"
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af #v4.1.0
+        with:
+          node-version: ${{ env.NODE_DEFAULT_VERSION }}
+
+      - name: "Install application dependencies"
+        run: |
+          npm install
+          cd frontend
+          npm install --legacy-peer-deps
+          cd ..
+
+      - name: "Execute unit tests with coverage"
+        run: npm run test:server
+
+      - name: "Execute frontend tests with coverage"
+        run: cd frontend && npm run test -- --watch=false --source-map=true && cd ..
+
+      - name: "Execute API integration tests with coverage"
+        run: npm run frisby
+        env:
+          NODE_ENV: test
+
+      - name: "Merge coverage reports for SonarCloud"
+        run: |
+          # Frontend coverage
+          if [ -f "build/reports/coverage/frontend-tests/lcov.info" ]; then
+            cp build/reports/coverage/frontend-tests/lcov.info frontend-lcov.info
+            sed -i 's|SF:|SF:frontend/src/|g' frontend-lcov.info
+          fi
+          
+          # Server coverage
+          if [ -f "build/reports/coverage/server-tests/lcov.info" ]; then
+            cp build/reports/coverage/server-tests/lcov.info server-lcov.info
+          fi
+          
+          # API coverage
+          if [ -f "build/reports/coverage/api-tests/lcov.info" ]; then
+            cp build/reports/coverage/api-tests/lcov.info api-lcov.info
+          fi
+          
+          # List merged files for verification
+          ls -la *-lcov.info 2>/dev/null || echo "Coverage files will be created during Sonar scan"
+        shell: bash
+
+      - name: "SonarCloud Scan - Code Quality Analysis"
+        uses: SonarSource/sonarqube-scan-action@master
+        with:
+          args: >
+            -Dsonar.projectKey=juice-shop
+            -Dsonar.organization=your-org
+            -Dsonar.sources=app.ts,server.ts,lib,models,routes,data,views
+            -Dsonar.exclusions=**/node_modules/**,**/build/**,**/dist/**,**/*.spec.ts,cypress/**,test/**
+            -Dsonar.javascript.lcov.reportPaths=frontend-lcov.info,server-lcov.info,api-lcov.info
+            -Dsonar.typescript.sonarlint.nodePath=
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "SonarCloud Quality Gate - Enforce Project Gates"
+        uses: SonarSource/sonarqube-quality-gate-action@master
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  sonarcloud-pr-check:
+    if: github.event_name == 'pull_request'
+    name: "SonarCloud PR Governance Check"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Check out Git repository with full history"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: "Use Node.js ${{ env.NODE_DEFAULT_VERSION }}"
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af #v4.1.0
+        with:
+          node-version: ${{ env.NODE_DEFAULT_VERSION }}
+
+      - name: "Install application dependencies"
+        run: |
+          npm install
+          cd frontend
+          npm install --legacy-peer-deps
+          cd ..
+
+      - name: "Execute all test suites with coverage"
+        run: npm test
+        timeout-minutes: 15
+
+      - name: "Execute API tests"
+        run: npm run frisby
+        env:
+          NODE_ENV: test
+        timeout-minutes: 10
+
+      - name: "Merge coverage reports"
+        run: |
+          if [ -f "build/reports/coverage/frontend-tests/lcov.info" ]; then
+            cp build/reports/coverage/frontend-tests/lcov.info frontend-lcov.info
+            sed -i 's|SF:|SF:frontend/src/|g' frontend-lcov.info
+          fi
+          if [ -f "build/reports/coverage/server-tests/lcov.info" ]; then
+            cp build/reports/coverage/server-tests/lcov.info server-lcov.info
+          fi
+          if [ -f "build/reports/coverage/api-tests/lcov.info" ]; then
+            cp build/reports/coverage/api-tests/lcov.info api-lcov.info
+          fi
+        shell: bash
+
+      - name: "SonarCloud PR Analysis - Detect New Issues"
+        uses: SonarSource/sonarqube-scan-action@master
+        with:
+          args: >
+            -Dsonar.projectKey=juice-shop
+            -Dsonar.organization=your-org
+            -Dsonar.sources=app.ts,server.ts,lib,models,routes,data,views
+            -Dsonar.exclusions=**/node_modules/**,**/build/**,**/dist/**,**/*.spec.ts,cypress/**,test/**
+            -Dsonar.javascript.lcov.reportPaths=frontend-lcov.info,server-lcov.info,api-lcov.info
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: "Comment PR with Quality Gate Status"
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const sonarUrl = `https://sonarcloud.io/project/overview?id=juice-shop`;
+            const qualityGateUrl = `https://sonarcloud.io/project/quality_gate?id=juice-shop`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 📊 Code Quality & Coverage Report\n\n` +
+                    `🔗 **SonarCloud Dashboard**: [View Full Analysis](${sonarUrl})\n` +
+                    `🎯 **Quality Gate Status**: [Check Gates](${qualityGateUrl})\n\n` +
+                    `### Governance Metrics:\n` +
+                    `- **Cyclomatic Complexity**: Tracked in [SonarCloud](${sonarUrl})\n` +
+                    `- **Code Coverage**: Tracked in [SonarCloud](${sonarUrl})\n` +
+                    `- **Security Hotspots**: Tracked in [SonarCloud](${sonarUrl})\n` +
+                    `- **New Issues on PR**: Detected and reported by Quality Gate\n\n` +
+                    `⚠️ **PR will fail if:**\n` +
+                    `- Coverage on new code < 80%\n` +
+                    `- New Security Hotspots detected\n` +
+                    `- Cyclomatic Complexity increases on new code\n`
+            });
