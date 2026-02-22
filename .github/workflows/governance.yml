@@ -53,5 +53,5 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `## 📊 Quality Gate Report\n📍 [View on SonarCloud](https://sonarcloud.io/project/overview?id=juice-shop)`
+              body: `## 📊 Quality Gate Report\n📍 [View on SonarCloud](https://sonarcloud.io/project/overview?id=JAL0NS0_juice-shop)`
             })
