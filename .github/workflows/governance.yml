@@ -34,7 +34,7 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@master
         with:
           args: >
-            -Dsonar.projectKey=juice-shop
+            -Dsonar.projectKey=JAL0NS0_juice-shop
             -Dsonar.organization=j-al0ns0
             -Dsonar.sources=app.ts,server.ts,lib,models,routes,data,views
             -Dsonar.exclusions=**/node_modules/**,**/build/**,**/dist/**,**/*.spec.ts,cypress/**,test/**
