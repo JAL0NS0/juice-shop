@@ -30,7 +30,7 @@ jobs:
           node-version: ${{ env.NODE_DEFAULT_VERSION }}
 
       - name: "Install dependencies"
-        run: npm install --ignore-scripts
+        run: npm install
 
       - name: "Execute server tests (coverage source)"
         run: npm run test:server
@@ -75,7 +75,7 @@ jobs:
           node-version: ${{ env.NODE_DEFAULT_VERSION }}
 
       - name: "Install dependencies"
-        run: npm install --ignore-scripts
+        run: npm install
 
       - name: "Generate coverage for SonarQube"
         run: npm run test:server
