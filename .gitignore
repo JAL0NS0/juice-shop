@@ -16,6 +16,12 @@ data/chatbot/*.*
 !data/chatbot/.gitkeep
 /data/juiceshop.sqlite-journal
 
+# DOCs
+refactoring_plan.md
+README_GIt.md
+tech_debt_audit.md
+docs\adr\ADR-001-migracion-sqlite-a-postgresql.md
+
 # Build
 .nyc_output/
 .sass-cache/

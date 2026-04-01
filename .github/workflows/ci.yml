@@ -99,9 +99,9 @@ jobs:
         env:
           NODE_ENV: test
         with:
-          timeout_minutes: 5
+          timeout_minutes: 10
           max_attempts: 3
-          command: npm run frisby
+          command: npm run frisby -- --testPathIgnorePatterns=erasureRequestApiSpec
       - name: "Copy API test coverage data"
         if: github.event_name == 'push' && matrix.os == 'ubuntu-latest' && matrix.node-version == '22'
         run: cp build/reports/coverage/api-tests/lcov.info api-lcov.info

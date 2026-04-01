@@ -57,6 +57,29 @@ For a detailed introduction, full list of features and architecture overview ple
 > You can find some less common installation variations as well as instructions to run Juice Shop on a variety of cloud computing providers in
 > [the _Running OWASP Juice Shop_ documentation](https://pwning.owasp-juice.shop/companion-guide/latest/part1/running.html).
 
+### One-Command Setup (Delivery 4)
+
+Use Docker Compose for a full environment spin-up without manual steps.
+
+| Mode | Command | Port | Typical Spin-up |
+|:-----|:--------|:-----|:----------------|
+| Demo (prebuilt image) | `npm run env:up:demo` | `3000` | `< 5 min` |
+| Source image (build local image) | `npm run env:up:source` | `3001` | `depends on image build cache` |
+
+Alternative on Windows PowerShell:
+
+- `./scripts/setup-env.ps1 -Mode demo`
+- `./scripts/setup-env.ps1 -Mode source`
+
+Stop and clean containers:
+
+- `npm run env:down`
+
+Prerequisites:
+
+1. Docker Desktop with `docker compose` support
+2. Available local ports `3000` and/or `3001`
+
 ### From Sources
 
 ![GitHub repo size](https://img.shields.io/github/repo-size/juice-shop/juice-shop.svg)
